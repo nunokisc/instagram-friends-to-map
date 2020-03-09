@@ -19,6 +19,8 @@ const port = process.env.PORT || 3000;
 var uploads = []
 var data = []
 
+//instagram-scraper @insta_args.txt --followings-input --include-location --media-types none --destination scrape1 --latest --maximum 3
+
 app.get('/', function (req, res) {
     res.sendFile(path.join(__dirname + '/index.html'));
 });
