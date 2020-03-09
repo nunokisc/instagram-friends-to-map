@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Origin Requests</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+        integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+        crossorigin="" />
+    <!-- Make sure you put this AFTER Leaflet's CSS -->
+
+
+    <style>
+        body {
+            padding-top: 50px;
+        }
+
+        #mapid {
+            height: 500px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="jumbotron">
+            <h1>Origin of requests</h1>
+            <h4>Nginx access log parser</h4>
+            <div id="mapid"></div>
+            <h3>Options</h3>
+            <div class="row">
+                <div class="col-sm">
+                    <form id="uploadForm" enctype="multipart/form-data" method="post">
+                        <div class="form-group">
+                            <label for="accessLogFile">Access log file</label>
+                            <input class="form-control-file" id="accessLogFile" type="file" name="accessLog" />
+                            <div class="progress">
+                                <div id="progressUpload" class="progress-bar" role="progressbar" aria-valuenow="0"
+                                    aria-valuemin="0" aria-valuemax="100" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Upload</button>
+                    </form>
+                </div>
+                <div class="col-sm">
+                    <form id="requestMaps">
+                        <div class="form-group">
+                            <label for="multiRequestMap">Request map</label>
+                            <select class="form-control" id="multiRequestMap" name="requestMap" size="3">
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Show</button>
+                    </form>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-sm">
+                    <form id="accessProcess">
+                        <div class="form-group">
+                            <label for="accessToProcess">Access log to process</label>
+                            <select class="form-control" id="accessToProcess" name="acessToProcess" size="3">
+                            </select>
+                            <div class="progress">
+                                <div id="progressProcess" class="progress-bar" role="progressbar" aria-valuenow="0"
+                                    aria-valuemin="0" aria-valuemax="100" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Process</button>
+                    </form>
+                </div>
+            </div>
+            </br>
+            <div class="row">
+                <div class="col-sm">
+                    <form id="accessGeoProcess">
+                        <div class="form-group">
+                            <label for="accessToGeoProcess">Access log to geo process</label>
+                            <select class="form-control" id="accessToGeoProcess" name="acessToGeoProcess" size="3">
+                            </select>
+                            <label for="geoSource">Geo ip sources</label>
+                            <select class="form-control" id="geoSource" name="geoSource">
+                            </select>
+                            <div class="progress">
+                                <div id="progressGeo" class="progress-bar" role="progressbar" aria-valuenow="0"
+                                    aria-valuemin="0" aria-valuemax="100" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Geo Process</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <!-- Copyright -->
+        <div class="footer-copyright text-center py-3">© 2020 Copyright:
+            <a href="https://nunocardoso.eu"> nunocardoso.eu</a>
+        </div>
+        <!-- Copyright -->
+
+    </footer>
+</body>
+
+</html>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"
+    integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+    integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous">
+</script>
+<script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+    integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+    crossorigin=""></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    var navigator_info = window.navigator;
+    var screen_info = window.screen;
+    var uid = navigator_info.mimeTypes.length;
+    uid += navigator_info.userAgent.replace(/\D+/g, '');
+    uid += navigator_info.plugins.length;
+    uid += screen_info.height || '';
+    uid += screen_info.width || '';
+    uid += screen_info.pixelDepth || '';
+
+    var socket = io(window.location.href + '?token=' + uid);
+
+    var mymap = L.map('mapid').setView([38.741107, -9.1435107], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
+        maxZoom: 18,
+    }).addTo(mymap);
+
+    loadSelectBoxes("all")
+
+    function loadSelectBoxes(what) {
+        switch (what) {
+            case "accessToProcess":
+                getFilesToProcess()
+                break;
+            case "accessToGeoProcess":
+                getFilesToGeoProcess()
+                break;
+            case "multiRequestMap":
+                getFilesGeoProcessed()
+                break;
+            case "getGeoIpSources":
+                getGeoIpSources()
+                break;
+            case "all":
+                getFilesToProcess()
+                getFilesToGeoProcess()
+                getFilesGeoProcessed()
+                getGeoIpSources()
+                break;
+        }
+    }
+
+    function resetSelectBoxes(what) {
+        switch (what) {
+            case "accessToProcess":
+                $('#accessToProcess').empty()
+                break;
+            case "accessToGeoProcess":
+                $('#accessToGeoProcess').empty()
+                break;
+            case "multiRequestMap":
+                $('#multiRequestMap').empty()
+                break;
+            case "getGeoIpSources":
+                $('#getGeoIpSources').empty()
+            case "all":
+                $('#accessToGeoProcess').empty()
+                $('#accessToProcess').empty()
+                $('#multiRequestMap').empty()
+                $('#getGeoIpSources').empty()
+                break;
+        }
+    }
+
+    function getFilesGeoProcessed() {
+        $.ajax({
+            url: 'http://localhost:3000/getFilesGeoProcessed',
+            success: function (jsondata) {
+                for (var i = 0; i < jsondata.length; i++) {
+                    $('#multiRequestMap').append("<option value=\"" + jsondata[i] + "\">" + jsondata[i]
+                        .split(".")[0] + "</option>");
+                }
+            }
+        })
+    }
+
+    function getFilesToGeoProcess() {
+        $.ajax({
+            url: 'http://localhost:3000/getFilesToGeoProcess',
+            success: function (jsondata) {
+                for (var i = 0; i < jsondata.length; i++) {
+                    $('#accessToGeoProcess').append("<option value=\"" + jsondata[i] + "\">" + jsondata[i]
+                        .split(".")[0] + "</option>");
+                }
+            }
+        })
+    }
+
+    function getFilesToProcess() {
+        $.ajax({
+            url: 'http://localhost:3000/getFilesToProcess',
+            success: function (jsondata) {
+                for (var i = 0; i < jsondata.length; i++) {
+                    $('#accessToProcess').append("<option value=\"" + jsondata[i] + "\">" + jsondata[i] +
+                        "</option>");
+                }
+            }
+        })
+    }
+
+    function getGeoIpSources() {
+        $.ajax({
+            url: 'http://localhost:3000/getGeoIpSources',
+            success: function (jsondata) {
+                for (var i = 0; i < jsondata.length; i++) {
+                    $('#geoSource').append("<option value=\"" + i + "\">" + jsondata[i] + "</option>");
+                }
+            }
+        })
+    }
+
+
+    $("#accessLogFile").change(function () {
+        $("#progressUpload").css({
+            "width": "0%"
+        });
+    });
+
+    $("#uploadForm").on('submit', (function (e) {
+        e.preventDefault();
+
+        var formData = new FormData(this);
+        $.ajax({
+            url: '/upload-access-log',
+            data: formData,
+            cache: false,
+            contentType: false,
+            processData: false,
+            method: 'POST',
+            type: 'POST', // For jQuery < 1.9
+            xhr: function () {
+                var xhr = new window.XMLHttpRequest();
+                //Upload Progress
+                xhr.upload.addEventListener("progress", function (evt) {
+                    if (evt.lengthComputable) {
+                        var percentComplete = (evt.loaded / evt.total) * 100;
+                        $("#progressUpload").css({
+                            "width": percentComplete + "%"
+                        });
+                    }
+                }, false);
+                return xhr;
+            },
+            success: function (data) {
+                $('#accessLogFile').val('');
+                resetSelectBoxes("accessToProcess");
+                loadSelectBoxes("accessToProcess");
+            }
+        });
+    }));
+
+    $("#requestMaps").on('submit', (function (e) {
+        e.preventDefault();
+        $.ajax({
+            url: '/getRequestMap?requestMap=' + $("#multiRequestMap").val(),
+            cache: false,
+            contentType: false,
+            processData: false,
+            method: 'GET',
+            type: 'GET', // For jQuery < 1.9
+            success: function (data) {
+                var markers = data
+                for (var i = 0; i < markers.length; i++) {
+                    console.log(markers[i])
+                    if (markers[i]['lat'] && markers[i]['lon']) {
+                        var lat = markers[i]['lat'];
+                        var lon = markers[i]['lon'];
+                        var ip = markers[i]['location'];
+                        var popupText = markers[i]['user'];
+
+                        var markerLocation = new L.LatLng(lat, lon);
+                        var marker = new L.circleMarker(markerLocation, {
+                            color: '#3388ff'
+                        });
+                        marker.addTo(mymap);
+
+                        marker.bindPopup(ip + " - Requests: " + popupText);
+                    }
+                }
+            }
+        });
+    }));
+
+    $("#accessProcess").on('submit', (function (e) {
+        e.preventDefault();
+        $("#progressProcess").css({
+            "width": "0%"
+        });
+        socket.emit('accessProcess', {
+            file: $("#accessToProcess").val(),
+            token: uid
+        });
+    }));
+
+    $("#accessGeoProcess").on('submit', (function (e) {
+        e.preventDefault();
+        $("#progressGeo").css({
+            "width": "0%"
+        });
+        socket.emit('accessGeoProcess', {
+            token: uid,
+            file: $("#accessToGeoProcess").val(),
+            geoSource: $("#geoSource").val()
+        });
+    }));
+
+    socket.on('accessProcessPercentage', function (msg) {
+        console.log(msg)
+        $("#progressProcess").css({
+            "width": msg + "%"
+        });
+    });
+
+    socket.on('accessGeoProcessPercentage', function (msg) {
+        console.log(msg)
+        $("#progressGeo").css({
+            "width": msg + "%"
+        });
+    });
+
+    socket.on('refreshView', function (msg) {
+        console.log(msg)
+        resetSelectBoxes(msg);
+        loadSelectBoxes(msg);
+    });
+</script>
