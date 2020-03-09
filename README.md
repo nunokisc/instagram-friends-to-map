@@ -21,7 +21,7 @@ To install instagram-friends-to-map:
 $ git clone https://github.com/nunokisc/instagram-friends-to-map.git
 ```
 ```bash
-cd instagram-friends-to-map
+$ cd instagram-friends-to-map
 ```
 ```bash
 $ npm install
