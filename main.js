@@ -193,7 +193,7 @@ function processUploadFolder(folderToProcess, token) {
 //getFriendsPosts("uploads/scrape_teste", "3")
 
 function getFriendsPosts(destination, maximum) {
-    let loginCredentials = fs.readFileSync("insta_args_local.txt");
+    let loginCredentials = fs.readFileSync("insta_args.txt");
     let loginCredentialsJson = JSON.parse(loginCredentials);
 
 
