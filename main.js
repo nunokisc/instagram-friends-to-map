@@ -2,6 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const app = express();
+const {
+    exec
+} = require("child_process");
+var chokidar = require('chokidar');
 var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 var request = require('request');
@@ -16,8 +20,13 @@ const resultsFolder = './results/';
 const resultsWGeoFolder = './results_with_geo/';
 //start app 
 const port = process.env.PORT || 3000;
+
 var uploads = []
 var data = []
+var watcher = chokidar.watch('uploads', {
+    ignored: /(^|[\/\\])\../,
+    persistent: true
+});
 
 //instagram-scraper @insta_args.txt --followings-input --include-location --media-types none --destination scrape1 --latest --maximum 3
 
@@ -25,8 +34,15 @@ app.get('/', function (req, res) {
     res.sendFile(path.join(__dirname + '/index.html'));
 });
 
-app.get('/getRequestMap', function (req, res) {
-    let requestedMap = fs.readFileSync(resultsWGeoFolder + req.query.requestMap);
+app.get('/getFriendsPosts', function (req, res) {
+    getFriendsPosts("uploads/" + req.query.destination, req.query.maximum)
+    res.json({
+        error: "none"
+    })
+})
+
+app.get('/getLocationMap', function (req, res) {
+    let requestedMap = fs.readFileSync(resultsWGeoFolder + req.query.locationMap);
     let mapPoints = JSON.parse(requestedMap);
     res.json(mapPoints)
 })
@@ -34,12 +50,47 @@ app.get('/getRequestMap', function (req, res) {
 app.get('/getFilesGeoProcessed', function (req, res) {
     let files = []
     fs.readdirSync(resultsWGeoFolder).forEach(file => {
-        files.push(file);
+        if (file != '.gitkeep')
+            files.push(file);
+    });
+    res.json(files)
+})
+
+app.get('/getFilesToProcess', function (req, res) {
+    let files = []
+    fs.readdirSync(uploadsFolder).forEach(file => {
+        if (file != '.gitkeep')
+            files.push(file);
+    });
+    res.json(files)
+})
+
+app.get('/getFilesToGeoProcess', function (req, res) {
+    let files = []
+    fs.readdirSync(resultsFolder).forEach(file => {
+        if (file != '.gitkeep')
+            files.push(file);
     });
     res.json(files)
 })
 
 http.listen(port, () => console.log(`listening on *: ${port}!`))
+
+io.on('connection', function (socket) {
+    console.log('a user connected');
+    socket.join(socket.handshake.query.token);
+    socket.on('friendsProcess', function (val) {
+        console.log('friendsProcess: ' + val.file);
+        processUploadFolder(val.file, val.token)
+    });
+    socket.on('friendsGeoProcess', function (val) {
+        console.log('friendsGeoProcess: ' + JSON.stringify(val));
+        processLocation(val.token, val.file)
+    });
+    socket.on('disconnect', function () {
+        console.log('user disconnected');
+    });
+});
 
 /* async.waterfall([function (callback) {
         getUploadsFolder(function () {
@@ -60,8 +111,13 @@ http.listen(port, () => console.log(`listening on *: ${port}!`))
 }) */
 
 
-function processLocation(data, resultToProcess) {
-    async.mapSeries(data, function (user, next) {
+function processLocation(token, fileName) {
+    var number = 0;
+    var processed = require(resultsFolder + fileName);
+    var processedSize = processed.length;
+    async.mapSeries(processed, function (user, next) {
+        number++;
+        io.to(token).emit("friendsGeoProcessPercentage", Math.floor(100 * number / processedSize));
         //console.log(user.location)
         //console.log("https://nominatim.openstreetmap.org/search/" + user.location.replace(/\s/g, '') + "?format=json&limit=1")
         request({
@@ -93,34 +149,26 @@ function processLocation(data, resultToProcess) {
     }, function (err, geoProcessed) {
         console.log("end")
         console.log(geoProcessed)
-        fs.writeFile(resultsWGeoFolder + resultToProcess + "_with_geo" + ".json", JSON.stringify(geoProcessed), function (err) {
-            console.log("write to file " + resultsWGeoFolder + resultToProcess + "_with_geo" + ".json")
+        fs.writeFile(resultsWGeoFolder + fileName.split('.').slice(0, -1).join('.') + "_with_geo" + ".json", JSON.stringify(geoProcessed), function (err) {
+            console.log("write to file " + resultsWGeoFolder + fileName.split('.').slice(0, -1).join('.') + "_with_geo" + ".json")
+            io.to(token).emit("refreshView", "multiLocationMap");
         });
     })
 }
 
-function getUploadsFolder(callback) {
-    fs.readdir(uploadsFolder, function (err, folders) {
-        //handling error
-        if (err) {
-            return console.log('Unable to scan directory: ' + err);
-        }
-        uploads = folders;
-        callback()
-    });
-
-}
-
-
-function processUploadFolder(folderToProcess,callback) {
+function processUploadFolder(folderToProcess, token) {
     //passsing directoryPath and callback function
     fs.readdir(uploadsFolder + folderToProcess, function (err, files) {
         //handling error
         if (err) {
             return console.log('Unable to scan directory: ' + err);
         }
+        var numberOfLines = files.length;
+        var number = 0;
         //listing all files using forEach
         files.forEach(function (file) {
+            number++;
+            io.to(token).emit("friendsProcessPercentage", Math.floor(100 * number / numberOfLines));
             // Do whatever you want to do with the file
             console.log(file);
             var cenas = require(uploadsFolder + folderToProcess + "/" + file);
@@ -137,7 +185,35 @@ function processUploadFolder(folderToProcess,callback) {
         console.log(data)
         fs.writeFile(resultsFolder + folderToProcess + ".json", JSON.stringify(data), function (err) {
             console.log("write to file " + resultsFolder + folderToProcess + ".json")
-            callback()
+            io.to(token).emit("refreshView", "friendsToGeoProcess");
         });
     });
 }
+
+//getFriendsPosts("uploads/scrape_teste", "3")
+
+function getFriendsPosts(destination, maximum) {
+    let loginCredentials = fs.readFileSync("insta_args_local.txt");
+    let loginCredentialsJson = JSON.parse(loginCredentials);
+
+
+    exec("instagram-scraper --login-user " + loginCredentialsJson.user + " --login-pass " + loginCredentialsJson.password + " --followings-input --include-location --media-types none --destination " + destination + " --latest --maximum " + maximum, (error, stdout, stderr) => {
+        if (error) {
+            console.log(`error: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            console.log(`stderr: ${stderr}`);
+            return;
+        }
+        console.log(`stdout: ${stdout}`);
+    });
+}
+
+watcher
+    .on('add', function (path) {
+        console.log('File', path, 'has been added');
+    })
+    .on('error', function (error) {
+        console.error('Error happened', error);
+    })

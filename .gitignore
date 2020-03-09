@@ -1,3 +1,6 @@
+instagram-scaper.log
+insta_args_local.txt
+
 uploads/*
 !uploads/.gitkeep
 

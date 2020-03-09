@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Origin Requests</title>
+    <title>Instagram-friends-to-map</title>
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
@@ -27,29 +27,27 @@
 
     <div class="container">
         <div class="jumbotron">
-            <h1>Origin of requests</h1>
-            <h4>Nginx access log parser</h4>
+            <h1>Instagram-friends-to-map</h1>
+            <h4>Get instagram friends post map location</h4>
             <div id="mapid"></div>
             <h3>Options</h3>
             <div class="row">
                 <div class="col-sm">
-                    <form id="uploadForm" enctype="multipart/form-data" method="post">
+                    <form id="processForm" enctype="multipart/form-data" method="post">
                         <div class="form-group">
-                            <label for="accessLogFile">Access log file</label>
-                            <input class="form-control-file" id="accessLogFile" type="file" name="accessLog" />
-                            <div class="progress">
-                                <div id="progressUpload" class="progress-bar" role="progressbar" aria-valuenow="0"
-                                    aria-valuemin="0" aria-valuemax="100" style="width: 0%;"></div>
-                            </div>
+                            <label for="accountName">Label</label>
+                            <input class="form-control" id="accountName" type="text" name="accountName" />
+                            <label for="postNumber">How many posts? (per friend)</label>
+                            <input class="form-control" id="postNumber" type="number" name="postNumber" />
                         </div>
-                        <button type="submit" class="btn btn-primary">Upload</button>
+                        <button type="submit" class="btn btn-primary">Go</button> (This can take hours if you follow many people)
                     </form>
                 </div>
                 <div class="col-sm">
-                    <form id="requestMaps">
+                    <form id="locationMap">
                         <div class="form-group">
-                            <label for="multiRequestMap">Request map</label>
-                            <select class="form-control" id="multiRequestMap" name="requestMap" size="3">
+                            <label for="multiLocationMap">Location map</label>
+                            <select class="form-control" id="multiLocationMap" name="locationMap" size="3">
                             </select>
                         </div>
                         <button type="submit" class="btn btn-primary">Show</button>
@@ -58,10 +56,10 @@
             </div>
             <div class="row">
                 <div class="col-sm">
-                    <form id="accessProcess">
+                    <form id="friendsProcess">
                         <div class="form-group">
-                            <label for="accessToProcess">Access log to process</label>
-                            <select class="form-control" id="accessToProcess" name="acessToProcess" size="3">
+                            <label for="friendsToProcess">Friends to process</label>
+                            <select class="form-control" id="friendsToProcess" name="acessToProcess" size="3">
                             </select>
                             <div class="progress">
                                 <div id="progressProcess" class="progress-bar" role="progressbar" aria-valuenow="0"
@@ -75,13 +73,10 @@
             </br>
             <div class="row">
                 <div class="col-sm">
-                    <form id="accessGeoProcess">
+                    <form id="friendsGeoProcess">
                         <div class="form-group">
-                            <label for="accessToGeoProcess">Access log to geo process</label>
-                            <select class="form-control" id="accessToGeoProcess" name="acessToGeoProcess" size="3">
-                            </select>
-                            <label for="geoSource">Geo ip sources</label>
-                            <select class="form-control" id="geoSource" name="geoSource">
+                            <label for="friendsToGeoProcess">Friends to geo process</label>
+                            <select class="form-control" id="friendsToGeoProcess" name="acessToGeoProcess" size="3">
                             </select>
                             <div class="progress">
                                 <div id="progressGeo" class="progress-bar" role="progressbar" aria-valuenow="0"
@@ -136,45 +131,38 @@
 
     function loadSelectBoxes(what) {
         switch (what) {
-            case "accessToProcess":
+            case "friendsToProcess":
                 getFilesToProcess()
                 break;
-            case "accessToGeoProcess":
+            case "friendsToGeoProcess":
                 getFilesToGeoProcess()
                 break;
-            case "multiRequestMap":
+            case "multiLocationMap":
                 getFilesGeoProcessed()
-                break;
-            case "getGeoIpSources":
-                getGeoIpSources()
                 break;
             case "all":
                 getFilesToProcess()
                 getFilesToGeoProcess()
                 getFilesGeoProcessed()
-                getGeoIpSources()
                 break;
         }
     }
 
     function resetSelectBoxes(what) {
         switch (what) {
-            case "accessToProcess":
-                $('#accessToProcess').empty()
+            case "friendsToProcess":
+                $('#friendsToProcess').empty()
                 break;
-            case "accessToGeoProcess":
-                $('#accessToGeoProcess').empty()
+            case "friendsToGeoProcess":
+                $('#friendsToGeoProcess').empty()
                 break;
-            case "multiRequestMap":
-                $('#multiRequestMap').empty()
+            case "multiLocationMap":
+                $('#multiLocationMap').empty()
                 break;
-            case "getGeoIpSources":
-                $('#getGeoIpSources').empty()
             case "all":
-                $('#accessToGeoProcess').empty()
-                $('#accessToProcess').empty()
-                $('#multiRequestMap').empty()
-                $('#getGeoIpSources').empty()
+                $('#friendsToGeoProcess').empty()
+                $('#friendsToProcess').empty()
+                $('#multiLocationMap').empty()
                 break;
         }
     }
@@ -184,7 +172,7 @@
             url: 'http://localhost:3000/getFilesGeoProcessed',
             success: function (jsondata) {
                 for (var i = 0; i < jsondata.length; i++) {
-                    $('#multiRequestMap').append("<option value=\"" + jsondata[i] + "\">" + jsondata[i]
+                    $('#multiLocationMap').append("<option value=\"" + jsondata[i] + "\">" + jsondata[i]
                         .split(".")[0] + "</option>");
                 }
             }
@@ -196,7 +184,7 @@
             url: 'http://localhost:3000/getFilesToGeoProcess',
             success: function (jsondata) {
                 for (var i = 0; i < jsondata.length; i++) {
-                    $('#accessToGeoProcess').append("<option value=\"" + jsondata[i] + "\">" + jsondata[i]
+                    $('#friendsToGeoProcess').append("<option value=\"" + jsondata[i] + "\">" + jsondata[i]
                         .split(".")[0] + "</option>");
                 }
             }
@@ -208,68 +196,30 @@
             url: 'http://localhost:3000/getFilesToProcess',
             success: function (jsondata) {
                 for (var i = 0; i < jsondata.length; i++) {
-                    $('#accessToProcess').append("<option value=\"" + jsondata[i] + "\">" + jsondata[i] +
+                    $('#friendsToProcess').append("<option value=\"" + jsondata[i] + "\">" + jsondata[i] +
                         "</option>");
                 }
             }
         })
     }
 
-    function getGeoIpSources() {
+    $("#processForm").on('submit', (function (e) {
+        e.preventDefault();
+
         $.ajax({
-            url: 'http://localhost:3000/getGeoIpSources',
+            url: 'http://localhost:3000/getFriendsPosts?destination=' + $("#accountName").val() + '&maximum=' + $("#postNumber").val(),
             success: function (jsondata) {
-                for (var i = 0; i < jsondata.length; i++) {
-                    $('#geoSource').append("<option value=\"" + i + "\">" + jsondata[i] + "</option>");
-                }
+                console.log(jsondata)
+                resetSelectBoxes("friendsToProcess");
+                loadSelectBoxes("friendsToProcess");
             }
         })
-    }
-
-
-    $("#accessLogFile").change(function () {
-        $("#progressUpload").css({
-            "width": "0%"
-        });
-    });
-
-    $("#uploadForm").on('submit', (function (e) {
-        e.preventDefault();
-
-        var formData = new FormData(this);
-        $.ajax({
-            url: '/upload-access-log',
-            data: formData,
-            cache: false,
-            contentType: false,
-            processData: false,
-            method: 'POST',
-            type: 'POST', // For jQuery < 1.9
-            xhr: function () {
-                var xhr = new window.XMLHttpRequest();
-                //Upload Progress
-                xhr.upload.addEventListener("progress", function (evt) {
-                    if (evt.lengthComputable) {
-                        var percentComplete = (evt.loaded / evt.total) * 100;
-                        $("#progressUpload").css({
-                            "width": percentComplete + "%"
-                        });
-                    }
-                }, false);
-                return xhr;
-            },
-            success: function (data) {
-                $('#accessLogFile').val('');
-                resetSelectBoxes("accessToProcess");
-                loadSelectBoxes("accessToProcess");
-            }
-        });
     }));
 
-    $("#requestMaps").on('submit', (function (e) {
+    $("#locationMap").on('submit', (function (e) {
         e.preventDefault();
         $.ajax({
-            url: '/getRequestMap?requestMap=' + $("#multiRequestMap").val(),
+            url: '/getLocationMap?locationMap=' + $("#multiLocationMap").val(),
             cache: false,
             contentType: false,
             processData: false,
@@ -282,8 +232,8 @@
                     if (markers[i]['lat'] && markers[i]['lon']) {
                         var lat = markers[i]['lat'];
                         var lon = markers[i]['lon'];
-                        var ip = markers[i]['location'];
-                        var popupText = markers[i]['user'];
+                        var location = markers[i]['location'];
+                        var user = markers[i]['user'];
 
                         var markerLocation = new L.LatLng(lat, lon);
                         var marker = new L.circleMarker(markerLocation, {
@@ -291,44 +241,44 @@
                         });
                         marker.addTo(mymap);
 
-                        marker.bindPopup(ip + " - Requests: " + popupText);
+                        marker.bindPopup(location + " - User: " + user);
                     }
                 }
             }
         });
     }));
 
-    $("#accessProcess").on('submit', (function (e) {
+    $("#friendsProcess").on('submit', (function (e) {
         e.preventDefault();
         $("#progressProcess").css({
             "width": "0%"
         });
-        socket.emit('accessProcess', {
-            file: $("#accessToProcess").val(),
+        socket.emit('friendsProcess', {
+            file: $("#friendsToProcess").val(),
             token: uid
         });
     }));
 
-    $("#accessGeoProcess").on('submit', (function (e) {
+    $("#friendsGeoProcess").on('submit', (function (e) {
         e.preventDefault();
         $("#progressGeo").css({
             "width": "0%"
         });
-        socket.emit('accessGeoProcess', {
+        socket.emit('friendsGeoProcess', {
             token: uid,
-            file: $("#accessToGeoProcess").val(),
+            file: $("#friendsToGeoProcess").val(),
             geoSource: $("#geoSource").val()
         });
     }));
 
-    socket.on('accessProcessPercentage', function (msg) {
+    socket.on('friendsProcessPercentage', function (msg) {
         console.log(msg)
         $("#progressProcess").css({
             "width": msg + "%"
         });
     });
 
-    socket.on('accessGeoProcessPercentage', function (msg) {
+    socket.on('friendsGeoProcessPercentage', function (msg) {
         console.log(msg)
         $("#progressGeo").css({
             "width": msg + "%"

@@ -1,2 +1,2 @@
--u=username
--p=password
+{"user":"instagramUsername",
+"password":"instagramPassword"}
