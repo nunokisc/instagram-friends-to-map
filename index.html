@@ -20,16 +20,30 @@
         #mapid {
             height: 500px;
         }
+
+        #console {
+         
+            height: 100px;
+            margin: 0;
+            overflow: scroll;
+            padding: 2rem;
+            color:black;
+            font: 1.3rem Inconsolata, monospace;
+            text-shadow: 0 0 5px #C8C8C8;
+        }
     </style>
 </head>
 
 <body>
-
     <div class="container">
         <div class="jumbotron">
             <h1>Instagram-friends-to-map</h1>
-            <h4>Get instagram friends post map location</h4>
+            <h4>Get instagram friends posts location on map</h4>
             <div id="mapid"></div>
+            <div class="row">
+                <div id="console" class="col-sm">
+                </div>
+            </div>
             <h3>Options</h3>
             <div class="row">
                 <div class="col-sm">
@@ -40,7 +54,8 @@
                             <label for="postNumber">How many posts? (per friend)</label>
                             <input class="form-control" id="postNumber" type="number" name="postNumber" />
                         </div>
-                        <button type="submit" class="btn btn-primary">Go</button> (This can take hours if you follow many people)
+                        <button type="submit" class="btn btn-primary">Go</button> (This can take hours if you follow
+                        many people)
                     </form>
                 </div>
                 <div class="col-sm">
@@ -207,7 +222,8 @@
         e.preventDefault();
 
         $.ajax({
-            url: 'http://localhost:3000/getFriendsPosts?destination=' + $("#accountName").val() + '&maximum=' + $("#postNumber").val(),
+            url: 'http://localhost:3000/getFriendsPosts?destination=' + $("#accountName").val() +
+                '&maximum=' + $("#postNumber").val(),
             success: function (jsondata) {
                 console.log(jsondata)
                 resetSelectBoxes("friendsToProcess");
@@ -289,5 +305,9 @@
         console.log(msg)
         resetSelectBoxes(msg);
         loadSelectBoxes(msg);
+    });
+
+    socket.on('console', function (msg) {
+        $("#console").prepend(msg+"<br>")
     });
 </script>

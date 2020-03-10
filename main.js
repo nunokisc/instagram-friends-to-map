@@ -196,23 +196,27 @@ function getFriendsPosts(destination, maximum) {
     let loginCredentials = fs.readFileSync("insta_args.txt");
     let loginCredentialsJson = JSON.parse(loginCredentials);
 
-
+    io.emit("console", "instagram-scraper started");
     exec("instagram-scraper --login-user " + loginCredentialsJson.user + " --login-pass " + loginCredentialsJson.password + " --followings-input --include-location --media-types none --destination " + destination + " --latest --maximum " + maximum, (error, stdout, stderr) => {
         if (error) {
             console.log(`error: ${error.message}`);
+            io.emit("console", error.message);
             return;
         }
         if (stderr) {
             console.log(`stderr: ${stderr}`);
+            io.emit("console", stderr);
             return;
         }
         console.log(`stdout: ${stdout}`);
+        io.emit("console", stdout);
     });
 }
 
 watcher
     .on('add', function (path) {
         console.log('File', path, 'has been added');
+        io.emit("console", path);
     })
     .on('error', function (error) {
         console.error('Error happened', error);
